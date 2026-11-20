@@ -1,0 +1,75 @@
+
+[
+  {
+    "id": 1,
+    "category": "General Services",
+    "question": "How can I apply for a public service?",
+    "answer": "Visit the official service portal or designated service center. Review the application instructions, complete the required form, and submit the listed documents."
+  },
+  {
+    "id": 2,
+    "category": "General Services",
+    "question": "How can I check my application status?",
+    "answer": "Use the application tracking option provided by the responsible department. Enter your application reference number if the service supports online tracking."
+  },
+  {
+    "id": 3,
+    "category": "General Services",
+    "question": "What should I do if my application is rejected?",
+    "answer": "Review the rejection notice for the reason and any available correction or appeal procedure. Contact the responsible department for clarification."
+  },
+  {
+    "id": 4,
+    "category": "Documentation",
+    "question": "What documents are required for an application?",
+    "answer": "Document requirements depend on the service. Consult the official application checklist before submitting identity, address, or other supporting documents."
+  },
+  {
+    "id": 5,
+    "category": "Documentation",
+    "question": "How can I correct an error in my submitted application?",
+    "answer": "Check whether the department provides an application correction facility. If corrections are not available online, contact the designated service office."
+  },
+  {
+    "id": 6,
+    "category": "Documentation",
+    "question": "Can I submit documents online?",
+    "answer": "Some departments accept digital document uploads. Check the official service instructions for accepted file formats, size limits, and verification requirements."
+  },
+  {
+    "id": 7,
+    "category": "Payments",
+    "question": "How do I pay an application fee?",
+    "answer": "Follow the payment instructions on the official department portal or at an authorized service center. Use only approved payment methods."
+  },
+  {
+    "id": 8,
+    "category": "Payments",
+    "question": "What should I do if my payment fails?",
+    "answer": "Check the payment status and transaction reference before attempting another payment. Contact the official payment support channel if the issue remains unresolved."
+  },
+  {
+    "id": 9,
+    "category": "Payments",
+    "question": "How can I get a payment receipt?",
+    "answer": "Check the payment confirmation page or transaction history for a receipt download option. Keep the transaction reference for future inquiries."
+  },
+  {
+    "id": 10,
+    "category": "Support",
+    "question": "How can I contact the public service department?",
+    "answer": "Use the contact information published on the department's official website. Available channels may include a help desk, telephone, email, or service center."
+  },
+  {
+    "id": 11,
+    "category": "Support",
+    "question": "How do I submit a complaint?",
+    "answer": "Use the department's official grievance or complaint channel. Provide a clear description of the issue and retain any complaint reference number."
+  },
+  {
+    "id": 12,
+    "category": "Support",
+    "question": "How can I find the nearest service center?",
+    "answer": "Check the official department website for its service center directory. Confirm the location and operating hours before visiting."
+  }
+]

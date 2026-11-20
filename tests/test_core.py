@@ -1,0 +1,82 @@
+"""Your tests. Each milestone in README.md gets one here: write the test first, then make it pass.
+
+They start skipped. Remove the `skip` line as you work on each milestone.
+"""
+import pytest
+
+# Milestone 1: Create public service FAQ dataset
+def test_milestone_1():
+    from app.core import milestone_1
+
+    result = milestone_1()
+
+    # Verify returned structure
+    assert isinstance(result, dict)
+
+    assert "faqs" in result
+    assert "training_examples" in result
+    assert "total_faqs" in result
+    assert "categories" in result
+
+    # Verify dataset size
+    assert result["total_faqs"] == 12
+    assert len(result["faqs"]) == 12
+
+    # Verify each FAQ
+    for faq in result["faqs"]:
+        assert "id" in faq
+        assert "category" in faq
+        assert "question" in faq
+        assert "answer" in faq
+
+        assert faq["question"].strip()
+        assert faq["answer"].strip()
+
+    # Verify no duplicate questions
+    questions = [
+        faq["question"].casefold()
+        for faq in result["faqs"]
+    ]
+
+    assert len(questions) == len(set(questions))
+
+    # Verify training examples
+    examples = result["training_examples"]
+
+    assert len(examples) == 12
+
+    for example in examples:
+        assert "### Question:" in example["text"]
+        assert "### Answer:" in example["text"]
+
+    # Verify expected categories
+    assert "General Services" in result["categories"]
+    assert "Documentation" in result["categories"]
+    assert "Payments" in result["categories"]
+    assert "Support" in result["categories"]
+
+
+
+# Milestone 2: Implement LoRA adapter injection and training on a pre-trained LLM (e.g., GPT-2).
+@pytest.mark.skip(reason="remove this line when you start milestone 2")
+def test_milestone_2():
+    raise NotImplementedError("write the test for milestone 2")
+
+
+# Milestone 3: Build a Streamlit interface where users can ask questions and get answers.
+@pytest.mark.skip(reason="remove this line when you start milestone 3")
+def test_milestone_3():
+    raise NotImplementedError("write the test for milestone 3")
+
+
+# Milestone 4: Verify the accuracy and relevance of the generated answers.
+@pytest.mark.skip(reason="remove this line when you start milestone 4")
+def test_milestone_4():
+    raise NotImplementedError("write the test for milestone 4")
+
+
+# Milestone 5: Implement adapter merging for inference.
+@pytest.mark.skip(reason="remove this line when you start milestone 5")
+def test_milestone_5():
+    raise NotImplementedError("write the test for milestone 5")
+
