@@ -151,3 +151,55 @@ def load_lora_adapter(model, path):
             )
 
     return model
+
+def merge_lora_weights(model):
+    """
+    Merge LoRA matrices into GPT-2 Conv1D weights.
+
+    After merging, LoRA wrappers are removed.
+    """
+    import torch
+
+    merged_layers = 0
+
+    for block in model.transformer.h:
+        attention = block.attn
+
+        for name in ("c_attn", "c_proj"):
+            layer = getattr(attention, name)
+
+            if not isinstance(layer, LoRAConv1D):
+                continue
+
+            base_layer = layer.base_layer
+
+            # GPT-2 Conv1D stores weights as
+            # (input_features, output_features).
+            delta_weight = (
+                layer.lora_A @ layer.lora_B
+            ) * layer.scaling
+
+            with torch.no_grad():
+                base_layer.weight.add_(
+                    delta_weight.to(
+                        device=base_layer.weight.device,
+                        dtype=base_layer.weight.dtype
+                    )
+                )
+
+            # Replace the LoRA wrapper with
+            # the updated original projection.
+            setattr(
+                attention,
+                name,
+                base_layer
+            )
+
+            merged_layers += 1
+
+    if merged_layers == 0:
+        raise ValueError(
+            "No LoRA layers were found to merge"
+        )
+
+    return merged_layers

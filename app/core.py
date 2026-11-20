@@ -436,7 +436,130 @@ def milestone_4(
     }
 
 
-# --- Milestone 5: Implement adapter merging for inference.
-# Hint: Apply the adapter merging technique for efficient and standalone inference of your fine-tuned model.
-def milestone_5():  # TODO(milestone 5)
-    raise NotImplementedError("TODO(milestone 5)")
+
+def milestone_5(
+    adapter_dir="models/faq_lora",
+    output_dir="models/faq_merged"
+):
+    """
+    Merge trained LoRA weights into GPT-2
+    and save a standalone inference model.
+    """
+    from pathlib import Path
+
+    import torch
+
+    from app.inference import load_faq_model
+    from app.lora import (
+        LoRAConv1D,
+        merge_lora_weights
+    )
+
+    print("=" * 55)
+    print("PUBLIC FAQ BOT - LORA ADAPTER MERGING")
+    print("=" * 55)
+
+    # Load pretrained model with trained LoRA adapter
+    print("Loading LoRA model...")
+
+    model, tokenizer, config = load_faq_model(
+        adapter_dir
+    )
+
+    model.eval()
+
+    # Use a fixed sample to compare model outputs
+    sample_prompt = (
+        "### Question:\n"
+        "How can I check my application status?\n\n"
+        "### Answer:\n"
+    )
+
+    inputs = tokenizer(
+        sample_prompt,
+        return_tensors="pt"
+    )
+
+    input_ids = inputs["input_ids"].to(
+        next(model.parameters()).device
+    )
+
+    # Record logits before merging
+    with torch.no_grad():
+        logits_before = model(
+            input_ids=input_ids
+        ).logits.detach().cpu().clone()
+
+    print("Merging LoRA adapter weights...")
+
+    merged_count = merge_lora_weights(model)
+
+    model.eval()
+
+    # Compare logits after merging
+    with torch.no_grad():
+        logits_after = model(
+            input_ids=input_ids
+        ).logits.detach().cpu()
+
+    max_difference = (
+        logits_before - logits_after
+    ).abs().max().item()
+
+    print("Merged layers:", merged_count)
+    print(
+        "Maximum logit difference:",
+        max_difference
+    )
+
+    # Verify no LoRA wrappers remain
+    remaining_lora = sum(
+        isinstance(module, LoRAConv1D)
+        for module in model.modules()
+    )
+
+    if remaining_lora != 0:
+        raise RuntimeError(
+            "LoRA wrappers remain after merging"
+        )
+
+    # Verify numerical equivalence
+    if not torch.allclose(
+        logits_before,
+        logits_after,
+        atol=1e-4,
+        rtol=1e-4
+    ):
+        raise RuntimeError(
+            "Merged model output differs "
+            "from the LoRA model"
+        )
+
+    # Save the standalone model
+    save_path = Path(output_dir)
+    save_path.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    model.save_pretrained(
+        str(save_path),
+        safe_serialization=True
+    )
+
+    tokenizer.save_pretrained(
+        str(save_path)
+    )
+
+    print("Merged model saved:", save_path)
+
+    return {
+        "model": model,
+        "tokenizer": tokenizer,
+        "merged_layers": merged_count,
+        "remaining_lora_layers": remaining_lora,
+        "max_logit_difference": max_difference,
+        "output_dir": str(save_path),
+        "base_model": config["model_name"]
+    }
+

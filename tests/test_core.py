@@ -273,8 +273,118 @@ def test_milestone_4(tmp_path):
 
 
 
-# Milestone 5: Implement adapter merging for inference.
-@pytest.mark.skip(reason="remove this line when you start milestone 5")
-def test_milestone_5():
-    raise NotImplementedError("write the test for milestone 5")
+
+# Milestone 5: Merge LoRA adapter for inference
+def test_milestone_5(tmp_path, monkeypatch):
+    import torch
+
+    from transformers import (
+        GPT2Config,
+        GPT2LMHeadModel
+    )
+
+    from app import inference
+    from app.core import milestone_5
+    from app.lora import (
+        LoRAConv1D,
+        inject_lora
+    )
+
+    torch.manual_seed(42)
+
+    # Create a small GPT-2 model locally.
+    # No Hugging Face download is required.
+    config = GPT2Config(
+        vocab_size=100,
+        n_positions=32,
+        n_ctx=32,
+        n_embd=32,
+        n_layer=2,
+        n_head=4
+    )
+
+    model = GPT2LMHeadModel(config)
+
+    injected = inject_lora(
+        model,
+        rank=4,
+        alpha=8
+    )
+
+    assert injected == 4
+
+    # Simulate trained, nonzero LoRA weights
+    with torch.no_grad():
+        for module in model.modules():
+            if isinstance(module, LoRAConv1D):
+                module.lora_B.normal_(
+                    mean=0.0,
+                    std=0.01
+                )
+
+    class FakeTokenizer:
+        eos_token_id = 0
+
+        def __call__(self, text, return_tensors="pt"):
+            return {
+                "input_ids": torch.tensor(
+                    [[1, 2, 3, 4]],
+                    dtype=torch.long
+                )
+            }
+
+        def save_pretrained(self, path):
+            from pathlib import Path
+
+            Path(path, "tokenizer_test.txt").write_text(
+                "test tokenizer",
+                encoding="utf-8"
+            )
+
+    tokenizer = FakeTokenizer()
+
+    # Substitute a locally constructed model
+    # for the saved LoRA model.
+    def fake_load_model(output_dir):
+        return model, tokenizer, {
+            "model_name": "local-test-gpt2"
+        }
+
+    monkeypatch.setattr(
+        inference,
+        "load_faq_model",
+        fake_load_model
+    )
+
+    output_dir = tmp_path / "merged"
+
+    result = milestone_5(
+        adapter_dir=str(tmp_path / "adapter"),
+        output_dir=str(output_dir)
+    )
+
+    assert result["merged_layers"] == 4
+    assert result["remaining_lora_layers"] == 0
+    assert result["max_logit_difference"] < 1e-4
+
+    # Confirm the merged model can be reloaded
+    restored = GPT2LMHeadModel.from_pretrained(
+        str(output_dir)
+    )
+
+    restored.eval()
+
+    sample = torch.tensor([[1, 2, 3, 4]])
+
+    with torch.no_grad():
+        expected = result["model"](sample).logits
+        actual = restored(sample).logits
+
+    assert torch.allclose(
+        expected,
+        actual,
+        atol=1e-5,
+        rtol=1e-5
+    )
+
 
