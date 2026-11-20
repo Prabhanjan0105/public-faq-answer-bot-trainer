@@ -84,10 +84,234 @@ def milestone_1():
 
 
 
-# --- Milestone 2: Implement LoRA adapter injection and training on a pre-trained LLM (e.g., GPT-2).
-# Hint: Use the LoRA adapter injection and training technique from the `Build LoRA from Scratch` drill.
-def milestone_2():  # TODO(milestone 2)
-    raise NotImplementedError("TODO(milestone 2)")
+
+def milestone_2(
+    model_name="sshleifer/tiny-gpt2",
+    epochs=1,
+    learning_rate=0.0005,
+    rank=4,
+    alpha=8,
+    max_length=128,
+    output_dir="models/faq_lora"
+):
+    """
+    Fine-tune GPT-2 using custom LoRA adapters
+    on the public service FAQ dataset.
+    """
+    import json
+    from pathlib import Path
+
+    import torch
+    from transformers import (
+        AutoTokenizer,
+        AutoModelForCausalLM
+    )
+
+    from app.lora import (
+        inject_lora,
+        count_parameters,
+        save_lora_adapter
+    )
+
+    if epochs < 1:
+        raise ValueError("epochs must be positive")
+
+    if learning_rate <= 0:
+        raise ValueError(
+            "learning_rate must be positive"
+        )
+
+    if max_length < 8:
+        raise ValueError(
+            "max_length must be at least 8"
+        )
+
+    torch.manual_seed(42)
+
+    # Milestone 1 dataset
+    dataset = milestone_1()
+    faqs = dataset["faqs"]
+
+    print("Loading tokenizer...")
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name
+    )
+
+    tokenizer.pad_token = tokenizer.eos_token
+
+    print("Loading pretrained model...")
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name
+    )
+
+    # Inject custom LoRA adapters
+    replaced = inject_lora(
+        model,
+        rank=rank,
+        alpha=alpha
+    )
+
+    stats = count_parameters(model)
+
+    print("LoRA layers injected:", replaced)
+    print("Total parameters:", stats["total"])
+    print("Trainable parameters:", stats["trainable"])
+    print(
+        "Trainable percentage:",
+        round(stats["percentage"], 4)
+    )
+
+    optimizer = torch.optim.AdamW(
+        (
+            p for p in model.parameters()
+            if p.requires_grad
+        ),
+        lr=learning_rate
+    )
+
+    loss_history = []
+
+    model.train()
+
+    for epoch in range(epochs):
+        epoch_loss = 0.0
+        trained_examples = 0
+
+        for faq in faqs:
+            prompt = (
+                "### Question:\n"
+                f"{faq['question']}\n\n"
+                "### Answer:\n"
+            )
+
+            answer = (
+                faq["answer"] +
+                tokenizer.eos_token
+            )
+
+            # Tokenize prompt and answer separately
+            prompt_ids = tokenizer.encode(
+                prompt, add_special_tokens=False
+            )
+
+            answer_ids = tokenizer.encode(
+                answer, add_special_tokens=False
+            )
+
+            # Keep space for at least one answer token
+            prompt_ids = prompt_ids[
+                :max_length - 2
+            ]
+
+            remaining = (
+                max_length - len(prompt_ids)
+            )
+
+            answer_ids = answer_ids[:remaining]
+
+            input_ids = prompt_ids + answer_ids
+
+            # Compute loss on answer tokens only
+            labels = (
+                [-100] * len(prompt_ids)
+                + answer_ids
+            )
+
+            inputs = torch.tensor(
+                [input_ids],
+                dtype=torch.long
+            )
+
+            targets = torch.tensor(
+                [labels],
+                dtype=torch.long
+            )
+
+            optimizer.zero_grad()
+
+            outputs = model(
+                input_ids=inputs,
+                labels=targets
+            )
+
+            loss = outputs.loss
+
+            if not torch.isfinite(loss):
+                raise RuntimeError(
+                    "Training produced non-finite loss"
+                )
+
+            loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(
+                (
+                    p for p in model.parameters()
+                    if p.requires_grad
+                ),
+                max_norm=1.0
+            )
+
+            optimizer.step()
+
+            epoch_loss += loss.item()
+            trained_examples += 1
+
+        average_loss = (
+            epoch_loss / trained_examples
+        )
+
+        loss_history.append(average_loss)
+
+        print(
+            f"Epoch {epoch + 1}/{epochs} "
+            f"| Loss: {average_loss:.4f}"
+        )
+
+    model.eval()
+
+    # Save adapter and metadata
+    output_path = Path(output_dir)
+    output_path.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    adapter_path = (
+        output_path / "adapter.safetensors"
+    )
+
+    save_lora_adapter(
+        model, adapter_path
+    )
+
+    config = {
+        "model_name": model_name,
+        "rank": rank,
+        "alpha": alpha,
+        "max_length": max_length,
+        "epochs": epochs
+    }
+
+    config_path = output_path / "config.json"
+
+    config_path.write_text(
+        json.dumps(config, indent=2),
+        encoding="utf-8"
+    )
+
+    print("LoRA adapter saved:", adapter_path)
+
+    return {
+        "model": model,
+        "tokenizer": tokenizer,
+        "loss_history": loss_history,
+        "adapter_path": str(adapter_path),
+        "config_path": str(config_path),
+        "injected_layers": replaced,
+        "parameter_stats": stats,
+        "total_faqs": len(faqs)
+    }
+
 
 
 # --- Milestone 3: Build a Streamlit interface where users can ask questions and get answers.
