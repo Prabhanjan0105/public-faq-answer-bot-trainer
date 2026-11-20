@@ -314,10 +314,34 @@ def milestone_2(
 
 
 
-# --- Milestone 3: Build a Streamlit interface where users can ask questions and get answers.
-# Hint: Leverage Streamlit for building an interactive web application where users can input questions.
-def milestone_3():  # TODO(milestone 3)
-    raise NotImplementedError("TODO(milestone 3)")
+
+def milestone_3(
+    question,
+    model,
+    tokenizer,
+    max_new_tokens=80,
+    temperature=0.7
+):
+    """
+    Connect the Streamlit application
+    to the LoRA FAQ inference pipeline.
+    """
+    from app.inference import generate_faq_answer
+
+    answer = generate_faq_answer(
+        question=question,
+        model=model,
+        tokenizer=tokenizer,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature
+    )
+
+    return {
+        "question": question,
+        "answer": answer,
+        "model_type": "GPT-2 with LoRA"
+    }
+
 
 
 # --- Milestone 4: Verify the accuracy and relevance of the generated answers.

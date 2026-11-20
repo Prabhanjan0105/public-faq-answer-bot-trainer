@@ -137,10 +137,62 @@ def test_milestone_2(tmp_path):
 
 
 
-# Milestone 3: Build a Streamlit interface where users can ask questions and get answers.
-@pytest.mark.skip(reason="remove this line when you start milestone 3")
-def test_milestone_3():
-    raise NotImplementedError("write the test for milestone 3")
+
+# Milestone 3: Streamlit FAQ inference interface
+def test_milestone_3(monkeypatch):
+    import pytest
+
+    from app import inference
+    from app.core import milestone_3
+
+    # Use a mock to avoid downloading GPT-2
+    def fake_generate_faq_answer(
+        question,
+        model,
+        tokenizer,
+        max_new_tokens=80,
+        temperature=0.7
+    ):
+        if not question.strip():
+            raise ValueError("Question cannot be empty")
+
+        return (
+            "Use the official department portal "
+            "to check your application status."
+        )
+
+    monkeypatch.setattr(
+        inference,
+        "generate_faq_answer",
+        fake_generate_faq_answer
+    )
+
+    result = milestone_3(
+        question="How can I check my application status?",
+        model=object(),
+        tokenizer=object()
+    )
+
+    assert isinstance(result, dict)
+
+    assert "question" in result
+    assert "answer" in result
+    assert "model_type" in result
+
+    assert result["question"] == (
+        "How can I check my application status?"
+    )
+
+    assert "official department portal" in result["answer"]
+    assert result["model_type"] == "GPT-2 with LoRA"
+
+    with pytest.raises(ValueError):
+        milestone_3(
+            question="",
+            model=object(),
+            tokenizer=object()
+        )
+
 
 
 # Milestone 4: Verify the accuracy and relevance of the generated answers.
