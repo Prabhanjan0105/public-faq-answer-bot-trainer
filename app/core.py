@@ -344,10 +344,96 @@ def milestone_3(
 
 
 
-# --- Milestone 4: Verify the accuracy and relevance of the generated answers.
-# Hint: Manually review the generated answers against your dataset to verify their accuracy and relevance.
-def milestone_4():  # TODO(milestone 4)
-    raise NotImplementedError("TODO(milestone 4)")
+
+def milestone_4(
+    answer_generator=None,
+    output_path="data/faq_evaluation.csv",
+    max_questions=None
+):
+    """
+    Evaluate generated answers against reference FAQs.
+
+    answer_generator: callable(question) -> answer
+    """
+    from app.evaluation import (
+        calculate_metrics,
+        save_evaluation_csv
+    )
+
+    dataset = milestone_1()
+    faqs = dataset["faqs"]
+
+    if max_questions is not None:
+        if not isinstance(max_questions, int) or max_questions < 1:
+            raise ValueError(
+                "max_questions must be a positive integer"
+            )
+        faqs = faqs[:max_questions]
+
+    # Load actual model only when no generator is provided.
+    if answer_generator is None:
+        from app.inference import (
+            load_faq_model,
+            generate_faq_answer
+        )
+
+        model, tokenizer, _ = load_faq_model()
+
+        def answer_generator(question):
+            return generate_faq_answer(
+                question=question,
+                model=model,
+                tokenizer=tokenizer,
+                max_new_tokens=80,
+                temperature=0.7
+            )
+
+    results = []
+
+    for faq in faqs:
+        question = faq["question"]
+        reference = faq["answer"]
+
+        generated = answer_generator(question)
+
+        if not isinstance(generated, str):
+            raise TypeError(
+                "Answer generator must return a string"
+            )
+
+        metrics = calculate_metrics(
+            reference,
+            generated
+        )
+
+        results.append({
+            "id": faq["id"],
+            "category": faq["category"],
+            "question": question,
+            "reference_answer": reference,
+            "generated_answer": generated,
+            **metrics,
+            "accuracy_rating": "",
+            "relevance_rating": "",
+            "review_notes": ""
+        })
+
+    average_f1 = (
+        sum(row["f1"] for row in results) / len(results)
+        if results else 0.0
+    )
+
+    saved_path = save_evaluation_csv(
+        results,
+        output_path
+    )
+
+    return {
+        "results": results,
+        "total_evaluated": len(results),
+        "average_f1": round(average_f1, 4),
+        "output_path": saved_path
+    }
 
 
 # --- Milestone 5: Implement adapter merging for inference.

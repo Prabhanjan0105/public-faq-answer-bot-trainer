@@ -195,10 +195,82 @@ def test_milestone_3(monkeypatch):
 
 
 
-# Milestone 4: Verify the accuracy and relevance of the generated answers.
-@pytest.mark.skip(reason="remove this line when you start milestone 4")
-def test_milestone_4():
-    raise NotImplementedError("write the test for milestone 4")
+
+# Milestone 4: Verify answer accuracy and relevance
+def test_milestone_4(tmp_path):
+    import csv
+    import pytest
+
+    from app.core import milestone_1, milestone_4
+    from app.evaluation import calculate_metrics
+
+    dataset = milestone_1()
+
+    reference_lookup = {
+        faq["question"]: faq["answer"]
+        for faq in dataset["faqs"]
+    }
+
+    # Perfect-answer generator for metric verification
+    def perfect_generator(question):
+        return reference_lookup[question]
+
+    output_file = tmp_path / "evaluation.csv"
+
+    result = milestone_4(
+        answer_generator=perfect_generator,
+        output_path=str(output_file)
+    )
+
+    assert result["total_evaluated"] == 12
+    assert result["average_f1"] == 1.0
+
+    assert output_file.exists()
+
+    for row in result["results"]:
+        assert row["precision"] == 1.0
+        assert row["recall"] == 1.0
+        assert row["f1"] == 1.0
+
+        # Manual ratings start empty
+        assert row["accuracy_rating"] == ""
+        assert row["relevance_rating"] == ""
+
+    # Verify saved CSV
+    with output_file.open(
+        newline="", encoding="utf-8"
+    ) as file:
+        rows = list(csv.DictReader(file))
+
+    assert len(rows) == 12
+    assert "generated_answer" in rows[0]
+    assert "review_notes" in rows[0]
+
+    # Completely unrelated answer
+    metrics = calculate_metrics(
+        "application status",
+        "banana orange"
+    )
+
+    assert metrics["f1"] == 0.0
+
+    # Empty prediction
+    metrics = calculate_metrics(
+        "application status",
+        ""
+    )
+
+    assert metrics["precision"] == 0.0
+    assert metrics["recall"] == 0.0
+    assert metrics["f1"] == 0.0
+
+    # Invalid question limit
+    with pytest.raises(ValueError):
+        milestone_4(
+            answer_generator=perfect_generator,
+            max_questions=0
+        )
+
 
 
 # Milestone 5: Implement adapter merging for inference.
